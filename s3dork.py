@@ -26,14 +26,13 @@ def banner():
  ___|___ /  __| | ___   ___| | __
 / __| |_ \ / _` |/ _ \ / __| |/ /
 \__ \___) | (_| | (_) | (__|   < 
-|___/____/ \__,_|\___/ \___|_|\_\
+|___/____/ \__,_|\___/ \___|_|\_\\
                                  
-
     {BLUE}Created by{END}: @Sheryx00
-    {BLUE}Github{END}: https://github.com/Sheryx00/s3dock\n\n"""
+    {BLUE}Github{END}: https://github.com/Sheryx00/s3dock\n"""
     return banner
 
-def google_dork_search(company):
+def google_dork_search(company, max_pages=10):
     dork = (
         f'site:.s3.amazonaws.com OR site:.blob.core.windows.net OR '
         f'site:.storage.googleapis.com OR site:.r2.cloudflarestorage.com OR '
@@ -50,18 +49,34 @@ def google_dork_search(company):
         'Referer': 'https://www.google.com/',
     }
 
-    # Send GET request to Google with headers
-    search_url = f"https://www.google.com/search?q={dork}"
-    response = requests.get(search_url, headers=headers)
-    response.raise_for_status()  # Will raise an HTTPError if the status code is 4xx or 5xx
-    
-    # Extract URLs from the response text using regular expressions
-    urls = re.findall(r'href="(http[^"]+)"', response.text)
-    
-    # Filter out irrelevant links (we can refine this if needed)
-    valid_urls = [url for url in urls if url.startswith('http')]
-    
-    return valid_urls
+    print(f"{BLUE}Searching for: {dork}{END}")
+    all_urls = []
+
+    for page in range(max_pages):
+        start = page * 10
+        search_url = f"https://www.google.com/search?q={dork}&start={start}"
+        
+        try:
+            response = requests.get(search_url, headers=headers)
+            response.raise_for_status()  # Raise an error if the request fails
+            
+            # Extract URLs from the response text using regex
+            urls = re.findall(r'href="(http[^"]+)"', response.text)
+            valid_urls = [url for url in urls if url.startswith('http')]
+
+            if not valid_urls:
+                print(f"{BLUE}No more results found after {page + 1} pages.{END}")
+                break
+            
+            all_urls.extend(valid_urls)
+            print(f"{BLUE}Page {page + 1}: {len(valid_urls)} results found.{END}")
+            time.sleep(random.uniform(2.0, 4.0))  # Random delay to avoid being blocked
+            
+        except requests.RequestException as e:
+            print(f"{RED}Failed to fetch page {page + 1}:{END}\n{e}")
+            break
+
+    return list(set(all_urls))  # Deduplicate URLs
 
 def download_file(url, output_folder):
     try:
@@ -75,15 +90,15 @@ def download_file(url, output_folder):
         with open(filepath, "wb") as file:
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
-        print(f"Downloaded: {filepath}")
+        print(f"{BLUE}Downloaded:{END} {filepath}")
     except requests.RequestException as e:
-        print(f"{RED}Failed to download {url}: {e}{END}")
+        print(f"{RED}Failed to download:{END} {url}\n{e}")
 
 def log_urls(urls, output_folder):
     log_file = os.path.join(output_folder, "s3dork.log")
     with open(log_file, "w") as f:
         f.writelines(url + "\n" for url in urls)
-    print(f"{BLUE}Logged URLs to: {log_file}{END}")
+    print(f"{BLUE}Logged URLs to:{END} {log_file}")
 
 def main():
     parser = argparse.ArgumentParser(description="Google Dork Search and File Downloader")
@@ -112,7 +127,7 @@ def main():
         print(f"{BLUE}\nNo files were downloaded.{END}")
     else:
         for url in urls:
-            print(f"{BLUE}Processing: {url}{END}")  # Updated to blue
+            print(f"{BLUE}Processing:{END} {url}")
             download_file(url, args.output)
             time.sleep(args.delay)
 
