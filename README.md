@@ -15,24 +15,18 @@ Clone this repository.
 git clone https://github.com/sheryx00/s3dork.git
 ```
 
-## Install dependencies:
-
-```bash
-pip install -r requeriments.txt
-```
-
 ## Usage
 
-Search and Download
+Search Download
 
 ```bash
-python3 s3dork.py -t "example_company" -o ./downloads --d 3 --no-quiet
+python3 s3dork.py -t "example_company" -o ./downloads --d 3
 ```
 
 Quiet Mode (List URLs Only)
 
 ```bash
-python3 s3dork.py -t "target_company" -o /path/to/output/folder
+python3 s3dork.py -t "target_company" -o /path/to/output/folder --quiet
 ```
 
 ## Help
@@ -41,7 +35,7 @@ python3 s3dork.py -t "target_company" -o /path/to/output/folder
 -t, --target: Target company name (required).
 -o, --output: Folder to save downloaded files (required).
 -d, --delay: Delay between processing results (default: 2 seconds).
--q, --no-quiet: List URLs only, skip downloading.
+-q, --quiet: List URLs only, skip downloading.
 ```
 
 ## Support
