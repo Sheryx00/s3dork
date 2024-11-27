@@ -83,13 +83,6 @@ def google_dork_search(company, max_pages=10):
 
     return list(set(all_urls))  # Deduplicate URLs
 
-def get_file_mime_type(filepath):
-    """
-    Returns the MIME type of a file using the mimetypes module.
-    """
-    mime_type, _ = mimetypes.guess_type(filepath)
-    return mime_type
-
 def download_file(url, output_folder, extensions):
     """
     Downloads a file from the given URL and saves it in the specified output folder
@@ -99,32 +92,27 @@ def download_file(url, output_folder, extensions):
         response = requests.get(url, stream=True)
         response.raise_for_status()
 
-        # Temporary file download
-        temp_filename = "temp_downloaded_file"
-        temp_filepath = os.path.join(output_folder, temp_filename)
+        # Check the MIME type directly from the response headers
+        mime_type = response.headers.get('Content-Type', '').split(';')[0]
+        if not mime_type:
+            print(f"{RED}Could not determine MIME type from headers:{END} {url}")
+            return
 
-        with open(temp_filepath, "wb") as temp_file:
-            for chunk in response.iter_content(chunk_size=8192):
-                temp_file.write(chunk)
-
-        # Check the MIME type of the file
-        mime_type = get_file_mime_type(temp_filepath)
+        # Check if the MIME type matches allowed extensions
         if extensions:
-            if mime_type:
-                ext = mime_type.split("/")[-1]  # Extract extension from MIME type
-                if ext not in extensions:
-                    print(f"{RED}Skipped (extension not allowed):{END} {url}")
-                    os.remove(temp_filepath)  # Delete the temporary file
-                    return
-            else:
-                print(f"{RED}Could not determine MIME type:{END} {url}")
-                os.remove(temp_filepath)
+            ext = mime_type.split("/")[-1]  # Extract extension from MIME type
+            if ext not in extensions:
+                print(f"{RED}Skipped (extension not allowed) [{ext}]:{END} {url}")
                 return
 
-        # Rename the file with its original name
+        # Temporary file download
         filename = url.split("/")[-1] or f"file.{mime_type.split('/')[-1] if mime_type else 'unknown'}"
         filepath = os.path.join(output_folder, filename)
-        os.rename(temp_filepath, filepath)
+
+        with open(filepath, "wb") as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
+
         print(f"{BLUE}Downloaded:{END} {filepath}")
 
     except requests.RequestException as e:
@@ -167,9 +155,21 @@ def main():
     parser.add_argument("-d", "--delay", type=float, default=2.0, help="Delay (in seconds) between processing each result")
     parser.add_argument("-e", "--ext", type=str, help="Comma-separated list of allowed file extensions (e.g., pdf,jpg,txt)")
     parser.add_argument("-q", "--quiet", action="store_true", help="Only log URLs without downloading files")
+    parser.add_argument("-x", "--extended", action="store_true", help="Include extended set of extensions (default 20 common extensions)")
+
     args = parser.parse_args()
 
-    extensions = args.ext.split(",") if args.ext else None
+    # Define the base extensions
+    base_extensions = [
+        "txt", "csv", "json", "xml", "xls", "xlsx", "pdf", "doc", "docx", "db",
+        "env", "bak", "log", "sql", "key", "pem", "tar", "tar.gz", "zip", "backup",
+    ]
+    
+    # If --extended flag is set, add the extended set of 20 file extensions
+    if args.extended:
+        extensions = base_extensions
+    else:
+        extensions = args.ext.split(",") if args.ext else None
 
     # Perform the Google Dork search
     urls = google_dork_search(args.target)
