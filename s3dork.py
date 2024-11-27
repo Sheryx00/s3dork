@@ -102,7 +102,7 @@ def download_file(url, output_folder, extensions):
         if extensions:
             ext = mime_type.split("/")[-1]  # Extract extension from MIME type
             if ext not in extensions:
-                print(f"{RED}Skipped (extension not allowed) [{ext}]:{END} {url}")
+                print(f"{RED}Skipped (extension is not in whitelist) [{ext}]:{END} {url}")
                 return
 
         # Temporary file download
